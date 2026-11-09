@@ -21,7 +21,7 @@ bot = telebot.TeleBot(TOKEN)
 def create_task(message):
     raw_text = message.text.replace('/vazifa', '').replace('/task', '').strip()
     
-    # Buyruq xabarini o'chirish
+    # Buyruq xabarini guruhdan o'chirish
     try:
         bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     except Exception:
@@ -32,9 +32,10 @@ def create_task(message):
 
     department = None
     assignee = None
+    deadline = None
     task_text = raw_text
 
-    # Vergul (,) yoki chiziqcha (|) orqali ajratish: Bo'lim, Vazifa, Mas'ul
+    # Vergul (,) yoki chiziqcha (|) orqali bo'lish
     delimiter = "," if "," in raw_text else ("|" if "|" in raw_text else None)
 
     if delimiter:
@@ -42,18 +43,29 @@ def create_task(message):
         if len(parts) == 1:
             task_text = parts[0]
         elif len(parts) == 2:
+            # Bo'lim, Vazifa
             department = parts[0]
             task_text = parts[1]
-        elif len(parts) >= 3:
+        elif len(parts) == 3:
+            # Bo'lim, Vazifa, Mas'ul
             department = parts[0]
             task_text = parts[1]
             assignee = parts[2]
+        elif len(parts) >= 4:
+            # Bo'lim, Vazifa, Mas'ul, Srok
+            department = parts[0]
+            task_text = parts[1]
+            assignee = parts[2]
+            deadline = parts[3]
 
     caption = "📌 *YANGI TOPSHIRIQ*\n"
     if department:
         caption += f"🏢 *Bo‘lim:* {department}\n"
     if assignee:
         caption += f"👤 *Mas’ul:* {assignee}\n"
+    if deadline:
+        caption += f"⏰ *Muddat:* {deadline}\n"
+        
     caption += f"\n▫️ {task_text}\n\n⏳ _Holati: Jarayonda_"
 
     markup = InlineKeyboardMarkup()
