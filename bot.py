@@ -17,7 +17,6 @@ def run_web():
 TOKEN = "9167869830:AAFqagQexFokD9WNHQoYtDF3bpgxXJKge-M"
 bot = telebot.TeleBot(TOKEN)
 
-# Izoh kutish holatini saqlash
 waiting_for_comment = {}
 
 def get_markup(is_done=False, user_name=""):
@@ -70,15 +69,15 @@ def create_task(message):
             assignee = parts[2]
             deadline = parts[3]
 
-    caption = "📌 *YANGI TOPSHIRIQ*\n"
+    caption = "⚡️ *TEZ KEL | VAZIFA*\n\n"
     if department:
-        caption += f"🏢 *Bo‘lim:* {department}\n"
+        caption += f"🔴 *BO‘LIM:* ❪ *{department.upper()}* ❫\n\n"
     if assignee:
         caption += f"👤 *Mas’ul:* {assignee}\n"
     if deadline:
         caption += f"⏰ *Muddat:* {deadline}\n"
         
-    caption += f"\n▫️ {task_text}\n\n⏳ _Holati: Jarayonda_"
+    caption += f"\n▫️ *Topshiriq:* {task_text}\n\n⏳ _Holati: Jarayonda_"
 
     bot.send_message(message.chat.id, caption, reply_markup=get_markup(), parse_mode="Markdown")
 
@@ -87,14 +86,13 @@ def callback_done(call):
     user_name = call.from_user.first_name
     original_text = call.message.text
 
-    if "✅ Bajarildi!" in original_text:
+    if "✅ Bajarildi!" in original_text or "Bajaruvchi:" in original_text:
         bot.answer_callback_query(call.id, text="Bu vazifa allaqachon bajarilgan!")
         return
 
-    # Holatni o'zgartirish
-    updated_text = original_text.replace("⏳ Holati: Jarayonda", f"✅ Holati: Bajarildi\n👤 Bajaruvchi: {user_name}")
+    updated_text = original_text.replace("⏳ Holati: Jarayonda", f"✅ *Holati:* Bajarildi\n👤 *Bajaruvchi:* {user_name}")
     if "Holati: Jarayonda" not in original_text:
-        updated_text = f"{original_text}\n\n✅ *Bajarildi!*\n👤 Bajaruvchi: {user_name}"
+        updated_text = f"{original_text}\n\n✅ *Bajarildi!*\n👤 *Bajaruvchi:* {user_name}"
 
     try:
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
@@ -114,13 +112,12 @@ def request_comment(call):
     target_msg_id = call.message.message_id
     user_name = call.from_user.first_name
 
-    # Foydalanuvchini izoh yozish ro'yxatiga qo'shamiz
     waiting_for_comment[f"{chat_id}_{user_id}"] = target_msg_id
 
     bot.answer_callback_query(call.id)
     sent_prompt = bot.send_message(
         chat_id, 
-        f"✍️ *{user_name}*, ushbu vazifaga izohingizni (hisobotingizni) yozing:", 
+        f"✍️ *{user_name}*, ushbu vazifaga izohingizni yozing:", 
         parse_mode="Markdown"
     )
     waiting_for_comment[f"{chat_id}_{user_id}_prompt"] = sent_prompt.message_id
@@ -131,7 +128,6 @@ def handle_comment_reply(message):
     target_msg_id = waiting_for_comment.pop(key, None)
     prompt_id = waiting_for_comment.pop(f"{key}_prompt", None)
 
-    # Botning va foydalanuvchining so'rov xabarlarini tozalaymiz
     try:
         bot.delete_message(message.chat.id, message.message_id)
         if prompt_id:
@@ -142,15 +138,10 @@ def handle_comment_reply(message):
     if not target_msg_id:
         return
 
-    # Asosiy kartochkani yangilash
     try:
-        # Mavjud xabarni olish uchun callback_query bo'lmagani sababli xabarni saqlash yoki o'zgartirish
         user_name = message.from_user.first_name
         comment_text = message.text
 
-        # Asl xabarga izohni qo'shish
-        # Xabarni o'qib bo'lmagani sababli Telegram API edit_message_text orqali yangilaydi
-        # Yangi izoh qo'shilganini bildiramiz
         bot.send_message(
             message.chat.id, 
             f"💬 *{user_name}* topshiriqqa izoh qoldirdi:\n«_{comment_text}_»", 
