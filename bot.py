@@ -4,7 +4,6 @@ from flask import Flask
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Render 24/7 porti uchun mini veb-server
 app = Flask(__name__)
 
 @app.route('/')
@@ -20,22 +19,49 @@ bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['vazifa', 'task'])
 def create_task(message):
-    task_text = message.text.replace('/vazifa', '').replace('/task', '').strip()
+    raw_text = message.text.replace('/vazifa', '').replace('/task', '').strip()
     
-    # Siz yozgan buyruq xabarini guruhdan o'chirib tashlaymiz
+    # Buyruq xabarini guruhdan o'chirish
     try:
         bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     except Exception:
         pass
 
-    if not task_text:
+    if not raw_text:
         return
+
+    department = None
+    assignee = None
+    task_text = raw_text
+
+    # Format: Bo'lim | Vazifa | Mas'ul
+    if "|" in raw_text:
+        parts = [p.strip() for p in raw_text.split("|") if p.strip()]
+        if len(parts) == 1:
+            task_text = parts[0]
+        elif len(parts) == 2:
+            department = parts[0]
+            task_text = parts[1]
+        elif len(parts) >= 3:
+            department = parts[0]
+            task_text = parts[1]
+            assignee = parts[2]
+    elif ":" in raw_text:
+        parts = raw_text.split(":", 1)
+        department = parts[0].strip()
+        task_text = parts[1].strip()
+
+    caption = "📌 *YANGI TOPSHIRIQ*\n"
+    if department:
+        caption += f"🏢 *Bo‘lim:* {department}\n"
+    if assignee:
+        caption += f"👤 *Mas’ul:* {assignee}\n"
+    caption += f"\n▫️ {task_text}\n\n⏳ _Holati: Jarayonda_"
 
     markup = InlineKeyboardMarkup()
     done_button = InlineKeyboardButton(text="🔘 Bajarilmadi (Kutilmoqda)", callback_data="mark_done")
     markup.add(done_button)
 
-    caption = f"📌 *YANGI TOPSHIRIQ:*\n\n▫️ {task_text}\n\n⏳ _Holati: Jarayonda_"
     bot.send_message(message.chat.id, caption, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "mark_done")
