@@ -21,7 +21,7 @@ bot = telebot.TeleBot(TOKEN)
 def create_task(message):
     raw_text = message.text.replace('/vazifa', '').replace('/task', '').strip()
     
-    # Buyruq xabarini guruhdan o'chirish
+    # Buyruq xabarini o'chirish
     try:
         bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
     except Exception:
@@ -34,9 +34,11 @@ def create_task(message):
     assignee = None
     task_text = raw_text
 
-    # Format: Bo'lim | Vazifa | Mas'ul
-    if "|" in raw_text:
-        parts = [p.strip() for p in raw_text.split("|") if p.strip()]
+    # Vergul (,) yoki chiziqcha (|) orqali ajratish: Bo'lim, Vazifa, Mas'ul
+    delimiter = "," if "," in raw_text else ("|" if "|" in raw_text else None)
+
+    if delimiter:
+        parts = [p.strip() for p in raw_text.split(delimiter) if p.strip()]
         if len(parts) == 1:
             task_text = parts[0]
         elif len(parts) == 2:
@@ -46,10 +48,6 @@ def create_task(message):
             department = parts[0]
             task_text = parts[1]
             assignee = parts[2]
-    elif ":" in raw_text:
-        parts = raw_text.split(":", 1)
-        department = parts[0].strip()
-        task_text = parts[1].strip()
 
     caption = "📌 *YANGI TOPSHIRIQ*\n"
     if department:
