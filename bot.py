@@ -1,6 +1,21 @@
+import os
+import threading
+from flask import Flask
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+# Render Web Service portini ochish uchun mini veb-server
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot faol ishlamoqda!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
+
+# Telegram Bot qismi
 TOKEN = "9167869830:AAFqagQexFokD9WNHQoYtDF3bpgxXJKge-M"
 bot = telebot.TeleBot(TOKEN)
 
@@ -41,5 +56,8 @@ def callback_done(call):
 def already_done(call):
     bot.answer_callback_query(call.id, text="Bu vazifa allaqachon bajarilgan!")
 
-print("Bot ishga tushdi...")
-bot.infinity_polling()
+if __name__ == "__main__":
+    # Veb serverni alohida oqimda ishga tushirish
+    threading.Thread(target=run_web, daemon=True).start()
+    print("Bot ishga tushdi...")
+    bot.infinity_polling()
