@@ -69,35 +69,47 @@ def create_task(message):
             assignee = parts[2]
             deadline = parts[3]
 
-    caption = "⚡️ *TEZ KEL | VAZIFA*\n\n"
+    caption = "⚡️ <b>TEZ KEL | VAZIFA</b>\n\n"
     if department:
-        caption += f"🔴 *BO‘LIM:* ❪ *{department.upper()}* ❫\n\n"
+        caption += f"🔴 <b>BO‘LIM:</b> ❪ <b>{department.upper()}</b> ❫\n\n"
     if assignee:
-        caption += f"👤 *Mas’ul:* {assignee}\n"
+        caption += f"👤 <b>Mas’ul:</b> {assignee}\n"
     if deadline:
-        caption += f"⏰ *Muddat:* {deadline}\n"
+        caption += f"⏰ <b>Muddat:</b> {deadline}\n"
         
-    caption += f"\n▫️ *Topshiriq:* {task_text}\n\n⏳ _Holati: Jarayonda_"
+    caption += f"\n▫️ <b>Topshiriq:</b> {task_text}\n\n⏳ <i>Holati: Jarayonda</i>"
 
-    bot.send_message(message.chat.id, caption, reply_markup=get_markup(), parse_mode="Markdown")
+    try:
+        sent_msg = bot.send_message(message.chat.id, caption, reply_markup=get_markup(), parse_mode="HTML")
+        # Vazifani avtomatik zakrepit (pin) qilish (bildirishnomasiz)
+        bot.pin_chat_message(chat_id=message.chat.id, message_id=sent_msg.message_id, disable_notification=True)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Xatolik: {e}")
 
 @bot.callback_query_handler(func=lambda call: call.data == "mark_done")
 def callback_done(call):
     user_name = call.from_user.first_name
     original_text = call.message.text
 
-    if "✅ Bajarildi!" in original_text or "Bajaruvchi:" in original_text:
+    if "Bajarildi" in original_text or "Bajaruvchi" in original_text:
         bot.answer_callback_query(call.id, text="Bu vazifa allaqachon bajarilgan!")
         return
 
-    updated_text = original_text.replace("⏳ Holati: Jarayonda", f"✅ *Holati:* Bajarildi\n👤 *Bajaruvchi:* {user_name}")
+    updated_text = original_text.replace("⏳ Holati: Jarayonda", f"✅ <b>Holati:</b> Bajarildi\n👤 <b>Bajaruvchi:</b> {user_name}")
     if "Holati: Jarayonda" not in original_text:
-        updated_text = f"{original_text}\n\n✅ *Bajarildi!*\n👤 *Bajaruvchi:* {user_name}"
+        updated_text = f"{original_text}\n\n✅ <b>Bajarildi!</b>\n👤 <b>Bajaruvchi:</b> {user_name}"
 
     try:
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                              text=updated_text, reply_markup=get_markup(is_done=True, user_name=user_name), parse_mode="Markdown")
-        bot.answer_callback_query(call.id, text="Vazifa bajarildi deb belgilandi!")
+                              text=updated_text, reply_markup=get_markup(is_done=True, user_name=user_name), parse_mode="HTML")
+        
+        # Bajarilgach, tepadan zakrepitdan (pin) chiqarib tashlash
+        try:
+            bot.unpin_chat_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+        except Exception:
+            pass
+
+        bot.answer_callback_query(call.id, text="Vazifa bajarildi va zakrepitdan olindi!")
     except Exception:
         bot.answer_callback_query(call.id, text="Yangilab bo'lmadi.")
 
@@ -117,8 +129,8 @@ def request_comment(call):
     bot.answer_callback_query(call.id)
     sent_prompt = bot.send_message(
         chat_id, 
-        f"✍️ *{user_name}*, ushbu vazifaga izohingizni yozing:", 
-        parse_mode="Markdown"
+        f"✍️ <b>{user_name}</b>, ushbu vazifaga izohingizni yozing:", 
+        parse_mode="HTML"
     )
     waiting_for_comment[f"{chat_id}_{user_id}_prompt"] = sent_prompt.message_id
 
@@ -144,9 +156,9 @@ def handle_comment_reply(message):
 
         bot.send_message(
             message.chat.id, 
-            f"💬 *{user_name}* topshiriqqa izoh qoldirdi:\n«_{comment_text}_»", 
+            f"💬 <b>{user_name}</b> topshiriqqa izoh qoldirdi:\n«<i>{comment_text}</i>»", 
             reply_to_message_id=target_msg_id,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
     except Exception:
         pass
