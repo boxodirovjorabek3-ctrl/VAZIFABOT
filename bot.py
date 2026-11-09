@@ -4,18 +4,17 @@ from flask import Flask
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Render Web Service portini ochish uchun mini veb-server
+# Render 24/7 porti uchun mini veb-server
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot faol ishlamoqda!"
+    return "Bot 24/7 faol ishlamoqda!"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# Telegram Bot qismi
 TOKEN = "9167869830:AAFqagQexFokD9WNHQoYtDF3bpgxXJKge-M"
 bot = telebot.TeleBot(TOKEN)
 
@@ -23,8 +22,13 @@ bot = telebot.TeleBot(TOKEN)
 def create_task(message):
     task_text = message.text.replace('/vazifa', '').replace('/task', '').strip()
     
+    # Siz yozgan buyruq xabarini guruhdan o'chirib tashlaymiz
+    try:
+        bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except Exception:
+        pass
+
     if not task_text:
-        bot.reply_to(message, "⚠️ Vazifa matnini yozing!\nMasalan: `/vazifa Buxgalteriya cheklarini yopish`", parse_mode="Markdown")
         return
 
     markup = InlineKeyboardMarkup()
@@ -57,7 +61,6 @@ def already_done(call):
     bot.answer_callback_query(call.id, text="Bu vazifa allaqachon bajarilgan!")
 
 if __name__ == "__main__":
-    # Veb serverni alohida oqimda ishga tushirish
     threading.Thread(target=run_web, daemon=True).start()
     print("Bot ishga tushdi...")
     bot.infinity_polling()
