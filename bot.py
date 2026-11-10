@@ -3,7 +3,6 @@ import threading
 from flask import Flask
 import telebot
 from telebot import types
-import datetime
 
 # Yangilangan bot tokeni:
 TOKEN = "9167869830:AAGlK7JpP74rSDAY3Gj8E0Nm4Yu4oqeoWIM"
@@ -25,11 +24,11 @@ def run_server():
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     text = (
-        "Assalomu alaykum! Vazifalar nazorati botiga xush kelibsiz.\n\n"
-        "Vazifa qo'shish formati:\n"
-        "<code>/vazifa bolim, Ism, Vazifa matni, Muddat</code>\n\n"
+        "⚡️ <b>TEZ KEL | VAZIFA BOTI</b>\n\n"
+        "Vazifa kiritish namunasi:\n"
+        "<code>/vazifa bolim, Mas'ul, Muddat, Topshiriq matni</code>\n\n"
         "Misol:\n"
-        "<code>/vazifa avtokara, ILHOM, leboyotka sotib olish kerak daff ga 917715040, 15-noyabrgachan</code>"
+        "<code>/vazifa EVAKUATOR, mamur, 12-noyabr, hamma remont bolgan moshinalarni royhati narhi javdalini qilib chiqsh</code>"
     )
     bot.reply_to(message, text, parse_mode="HTML")
 
@@ -41,7 +40,7 @@ def handle_vazifa(message):
     if not raw_text:
         bot.reply_to(
             message, 
-            "⚠️ Format noto'g'ri!\nMisol: <code>/vazifa bolim, mas'ul, vazifa, muddat</code>", 
+            "⚠️ <b>Format xato!</b>\nNamuna: <code>/vazifa Bo'lim, Mas'ul, Muddat, Topshiriq</code>", 
             parse_mode="HTML"
         )
         return
@@ -49,56 +48,71 @@ def handle_vazifa(message):
     parts = [p.strip() for p in raw_text.split(',') if p.strip()]
 
     if len(parts) >= 4:
-        bolim = parts[0]
+        bolim = parts[0].upper()
         masul = parts[1]
-        muddat = parts[-1]
-        vazifa_matni = ", ".join(parts[2:-1])
+        muddat = parts[2]
+        topshiriq = ", ".join(parts[3:])
     elif len(parts) == 3:
-        bolim = parts[0]
+        bolim = parts[0].upper()
         masul = parts[1]
-        vazifa_matni = parts[2]
-        muddat = "Belgilanmagan"
+        muddat = parts[2]
+        topshiriq = "Kiritilmagan"
     else:
-        bolim = "Umumiy"
+        bolim = "UMUMIY"
         masul = "Belgilanmagan"
-        vazifa_matni = raw_text
         muddat = "Belgilanmagan"
+        topshiriq = raw_text
 
-    markup = types.InlineKeyboardMarkup()
-    btn_done = types.InlineKeyboardButton("✅ Bajarildi deb belgilash", callback_data="task_done")
-    markup.add(btn_done)
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    btn_status = types.InlineKeyboardButton("🔘 Bajarilmadi (Kutilmoqda)", callback_data="toggle_status")
+    btn_comment = types.InlineKeyboardButton("💬 Izoh qoldirish", callback_data="add_comment")
+    markup.add(btn_status, btn_comment)
 
     javob = (
-        f"📌 <b>Yangi vazifa biriktirildi!</b>\n\n"
-        f"🏢 <b>Bo'lim:</b> {bolim}\n"
+        f"⚡️ <b>TEZ KEL | VAZIFA</b>\n\n"
+        f"🔴 <b>BO'LIM: ( {bolim} )</b>\n\n"
         f"👤 <b>Mas'ul:</b> {masul}\n"
-        f"📝 <b>Vazifa:</b> {vazifa_matni}\n"
-        f"⏳ <b>Muddat:</b> {muddat}\n"
-        f"📅 <b>Qo'shilgan vaqt:</b> {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
-        f"Holat: ⏳ <i>Jarayonda...</i>"
+        f"⏰ <b>Muddat:</b> {muddat}\n\n"
+        f"▫️ <b>Topshiriq:</b> {topshiriq}\n\n"
+        f"⏳ <i>Holati: Jarayonda</i>"
     )
 
     bot.send_message(message.chat.id, javob, reply_markup=markup, parse_mode="HTML")
 
-# Bajarildi tugmasi bosilganda
-@bot.callback_query_handler(func=lambda call: call.data == "task_done")
-def callback_done(call):
-    user_name = call.from_user.first_name
-    old_text = call.message.text or ""
+# Tugmalar bosilganda
+@bot.callback_query_handler(func=lambda call: call.data in ["toggle_status", "add_comment"])
+def callback_handler(call):
+    if call.data == "toggle_status":
+        user_mention = f"@{call.from_user.username}" if call.from_user.username else call.from_user.first_name
+        current_text = call.message.text or ""
 
-    new_text = old_text.replace(
-        "Holat: ⏳ Jarayonda...", 
-        f"Holat: ✅ <b>Bajarildi!</b> (Tasdiqladi: @{call.from_user.username or user_name})"
-    )
+        if "⏳ Holati: Jarayonda" in current_text:
+            new_text = current_text.replace(
+                "⏳ Holati: Jarayonda", 
+                f"✅ <b>Holati: Bajarildi!</b> (Tasdiqladi: {user_mention})"
+            )
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            btn_status = types.InlineKeyboardButton("✅ Bajarildi", callback_data="toggle_status")
+            btn_comment = types.InlineKeyboardButton("💬 Izoh qoldirish", callback_data="add_comment")
+            markup.add(btn_status, btn_comment)
+            
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=new_text,
+                parse_mode="HTML",
+                reply_markup=markup
+            )
+            bot.answer_callback_query(call.id, "Holat: Bajarildi!")
+        else:
+            bot.answer_callback_query(call.id, "Ushbu vazifa allaqachon bajarilgan!")
 
-    bot.edit_message_text(
-        chat_id=call.message.chat.id,
-        message_id=call.message.message_id,
-        text=new_text,
-        parse_mode="HTML",
-        reply_markup=None
-    )
-    bot.answer_callback_query(call.id, "Vazifa bajarildi!")
+    elif call.data == "add_comment":
+        bot.answer_callback_query(
+            call.id, 
+            "Izoh qoldirish uchun xabarga 'Reply' (Javob berish) qilib yozing.", 
+            show_alert=True
+        )
 
 if __name__ == "__main__":
     t = threading.Thread(target=run_server)
