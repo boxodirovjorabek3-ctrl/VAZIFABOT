@@ -3,9 +3,8 @@ import telebot
 from telebot import types
 import datetime
 
-# Render'da Environment Variables (BOT_TOKEN) bo'lsa o'shani oladi, 
-# bo'lmasa pastdagi qo'shtirnoq ichiga o'z tokeningizni yozib qo'yishingiz ham mumkin:
-TOKEN = os.getenv("BOT_TOKEN", "SIZNING_BOT_TOKENINGIZ")
+# TELEGRAM BOT TOKENINGIZNI SHU YERGA YOZING (QO'SHTIRNOQ ICHIGA):
+TOKEN = "BU_YERGA_TELEGRAM_TOKENINGIZNI_YOZING"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -14,7 +13,7 @@ def send_welcome(message):
     text = (
         "Assalomu alaykum! Vazifalar nazorati botiga xush kelibsiz.\n\n"
         "Vazifa qo'shish formati:\n"
-        "<code>/vazifa bolim, Ism, Vazifa tafsiloti, Muddat</code>\n\n"
+        "<code>/vazifa bolim, Ism, Vazifa matni, Muddat</code>\n\n"
         "Misol:\n"
         "<code>/vazifa avtokara, ILHOM, leboyotka sotib olish kerak daff ga 917715040, 15-noyabrgachan</code>"
     )
@@ -27,7 +26,8 @@ def handle_vazifa(message):
     if not raw_text:
         bot.reply_to(
             message, 
-            "⚠️ Format noto'g'ri!\nMisol: <code>/vazifa bolim, mas'ul, vazifa, muddat</code>", 
+            "⚠️ Format noto'g'ri!\n"
+            "Misol: <code>/vazifa bolim, mas'ul, vazifa, muddat</code>", 
             parse_mode="HTML"
         )
         return
@@ -73,7 +73,10 @@ def callback_done(call):
     user_name = call.from_user.first_name
     old_text = call.message.text or ""
 
-    new_text = old_text.replace("Holat: ⏳ Jarayonda...", f"Holat: ✅ <b>Bajarildi!</b> (Tasdiqladi: @{call.from_user.username or user_name})")
+    new_text = old_text.replace(
+        "Holat: ⏳ Jarayonda...", 
+        f"Holat: ✅ <b>Bajarildi!</b> (Tasdiqladi: @{call.from_user.username or user_name})"
+    )
 
     bot.edit_message_text(
         chat_id=call.message.chat.id,
