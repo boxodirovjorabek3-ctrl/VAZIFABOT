@@ -1,169 +1,89 @@
 import os
-import threading
-from flask import Flask
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot import types
+import datetime
 
-app = Flask(__name__)
+# Render'da Environment Variables (BOT_TOKEN) bo'lsa o'shani oladi, 
+# bo'lmasa pastdagi qo'shtirnoq ichiga o'z tokeningizni yozib qo'yishingiz ham mumkin:
+TOKEN = os.getenv("BOT_TOKEN", "SIZNING_BOT_TOKENINGIZ")
 
-@app.route('/')
-def home():
-    return "Bot 24/7 faol ishlamoqda!"
-
-def run_web():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
-
-TOKEN = "9167869830:AAFqagQexFokD9WNHQoYtDF3bpgxXJKge-M"
 bot = telebot.TeleBot(TOKEN)
 
-waiting_for_comment = {}
-
-def get_markup(is_done=False, user_name=""):
-    markup = InlineKeyboardMarkup()
-    if not is_done:
-        done_btn = InlineKeyboardButton(text="🔘 Bajarilmadi (Kutilmoqda)", callback_data="mark_done")
-        comment_btn = InlineKeyboardButton(text="💬 Izoh qoldirish", callback_data="add_comment")
-        markup.row(done_btn)
-        markup.row(comment_btn)
-    else:
-        done_btn = InlineKeyboardButton(text=f"✅ Bajarildi ({user_name})", callback_data="already_done")
-        comment_btn = InlineKeyboardButton(text="💬 Izoh qoldirish", callback_data="add_comment")
-        markup.row(done_btn)
-        markup.row(comment_btn)
-    return markup
-
-@bot.message_handler(commands=['vazifa', 'task'])
-def create_task(message):
-    raw_text = message.text.replace('/vazifa', '').replace('/task', '').strip()
-    
-    try:
-        bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-    except Exception:
-        pass
-
-    if not raw_text:
-        return
-
-    department = None
-    assignee = None
-    deadline = None
-    task_text = raw_text
-
-    delimiter = "," if "," in raw_text else ("|" if "|" in raw_text else None)
-
-    if delimiter:
-        parts = [p.strip() for p in raw_text.split(delimiter) if p.strip()]
-        if len(parts) == 1:
-            task_text = parts[0]
-        elif len(parts) == 2:
-            department = parts[0]
-            task_text = parts[1]
-        elif len(parts) == 3:
-            department = parts[0]
-            task_text = parts[1]
-            assignee = parts[2]
-        elif len(parts) >= 4:
-            department = parts[0]
-            task_text = parts[1]
-            assignee = parts[2]
-            deadline = parts[3]
-
-    caption = "⚡️ <b>TEZ KEL | VAZIFA</b>\n\n"
-    if department:
-        caption += f"🔴 <b>BO‘LIM:</b> ❪ <b>{department.upper()}</b> ❫\n\n"
-    if assignee:
-        caption += f"👤 <b>Mas’ul:</b> {assignee}\n"
-    if deadline:
-        caption += f"⏰ <b>Muddat:</b> {deadline}\n"
-        
-    caption += f"\n▫️ <b>Topshiriq:</b> {task_text}\n\n⏳ <i>Holati: Jarayonda</i>"
-
-    try:
-        sent_msg = bot.send_message(message.chat.id, caption, reply_markup=get_markup(), parse_mode="HTML")
-        # Vazifani avtomatik zakrepit (pin) qilish (bildirishnomasiz)
-        bot.pin_chat_message(chat_id=message.chat.id, message_id=sent_msg.message_id, disable_notification=True)
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Xatolik: {e}")
-
-@bot.callback_query_handler(func=lambda call: call.data == "mark_done")
-def callback_done(call):
-    user_name = call.from_user.first_name
-    original_text = call.message.text
-
-    if "Bajarildi" in original_text or "Bajaruvchi" in original_text:
-        bot.answer_callback_query(call.id, text="Bu vazifa allaqachon bajarilgan!")
-        return
-
-    updated_text = original_text.replace("⏳ Holati: Jarayonda", f"✅ <b>Holati:</b> Bajarildi\n👤 <b>Bajaruvchi:</b> {user_name}")
-    if "Holati: Jarayonda" not in original_text:
-        updated_text = f"{original_text}\n\n✅ <b>Bajarildi!</b>\n👤 <b>Bajaruvchi:</b> {user_name}"
-
-    try:
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                              text=updated_text, reply_markup=get_markup(is_done=True, user_name=user_name), parse_mode="HTML")
-        
-        # Bajarilgach, tepadan zakrepitdan (pin) chiqarib tashlash
-        try:
-            bot.unpin_chat_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
-        except Exception:
-            pass
-
-        bot.answer_callback_query(call.id, text="Vazifa bajarildi va zakrepitdan olindi!")
-    except Exception:
-        bot.answer_callback_query(call.id, text="Yangilab bo'lmadi.")
-
-@bot.callback_query_handler(func=lambda call: call.data == "already_done")
-def already_done(call):
-    bot.answer_callback_query(call.id, text="Bu vazifa allaqachon bajarilgan!")
-
-@bot.callback_query_handler(func=lambda call: call.data == "add_comment")
-def request_comment(call):
-    user_id = call.from_user.id
-    chat_id = call.message.chat.id
-    target_msg_id = call.message.message_id
-    user_name = call.from_user.first_name
-
-    waiting_for_comment[f"{chat_id}_{user_id}"] = target_msg_id
-
-    bot.answer_callback_query(call.id)
-    sent_prompt = bot.send_message(
-        chat_id, 
-        f"✍️ <b>{user_name}</b>, ushbu vazifaga izohingizni yozing:", 
-        parse_mode="HTML"
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    text = (
+        "Assalomu alaykum! Vazifalar nazorati botiga xush kelibsiz.\n\n"
+        "Vazifa qo'shish formati:\n"
+        "<code>/vazifa bolim, Ism, Vazifa tafsiloti, Muddat</code>\n\n"
+        "Misol:\n"
+        "<code>/vazifa avtokara, ILHOM, leboyotka sotib olish kerak daff ga 917715040, 15-noyabrgachan</code>"
     )
-    waiting_for_comment[f"{chat_id}_{user_id}_prompt"] = sent_prompt.message_id
+    bot.reply_to(message, text, parse_mode="HTML")
 
-@bot.message_handler(func=lambda m: f"{m.chat.id}_{m.from_user.id}" in waiting_for_comment)
-def handle_comment_reply(message):
-    key = f"{message.chat.id}_{message.from_user.id}"
-    target_msg_id = waiting_for_comment.pop(key, None)
-    prompt_id = waiting_for_comment.pop(f"{key}_prompt", None)
-
-    try:
-        bot.delete_message(message.chat.id, message.message_id)
-        if prompt_id:
-            bot.delete_message(message.chat.id, prompt_id)
-    except Exception:
-        pass
-
-    if not target_msg_id:
-        return
-
-    try:
-        user_name = message.from_user.first_name
-        comment_text = message.text
-
-        bot.send_message(
-            message.chat.id, 
-            f"💬 <b>{user_name}</b> topshiriqqa izoh qoldirdi:\n«<i>{comment_text}</i>»", 
-            reply_to_message_id=target_msg_id,
+@bot.message_handler(commands=['vazifa'])
+def handle_vazifa(message):
+    raw_text = message.text.replace('/vazifa', '').strip()
+    
+    if not raw_text:
+        bot.reply_to(
+            message, 
+            "⚠️ Format noto'g'ri!\nMisol: <code>/vazifa bolim, mas'ul, vazifa, muddat</code>", 
             parse_mode="HTML"
         )
-    except Exception:
-        pass
+        return
+
+    # Vergul orqali qismlarga ajratamiz
+    parts = [p.strip() for p in raw_text.split(',') if p.strip()]
+
+    if len(parts) >= 4:
+        bolim = parts[0]
+        masul = parts[1]
+        muddat = parts[-1]
+        vazifa_matni = ", ".join(parts[2:-1])
+    elif len(parts) == 3:
+        bolim = parts[0]
+        masul = parts[1]
+        vazifa_matni = parts[2]
+        muddat = "Belgilanmagan"
+    else:
+        bolim = "Umumiy"
+        masul = "Belgilanmagan"
+        vazifa_matni = raw_text
+        muddat = "Belgilanmagan"
+
+    # Tugma yasash
+    markup = types.InlineKeyboardMarkup()
+    btn_done = types.InlineKeyboardButton("✅ Bajarildi deb belgilash", callback_data="task_done")
+    markup.add(btn_done)
+
+    javob = (
+        f"📌 <b>Yangi vazifa biriktirildi!</b>\n\n"
+        f"🏢 <b>Bo'lim:</b> {bolim}\n"
+        f"👤 <b>Mas'ul:</b> {masul}\n"
+        f"📝 <b>Vazifa:</b> {vazifa_matni}\n"
+        f"⏳ <b>Muddat:</b> {muddat}\n"
+        f"📅 <b>Qo'shilgan vaqt:</b> {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"Holat: ⏳ <i>Jarayonda...</i>"
+    )
+
+    bot.send_message(message.chat.id, javob, reply_markup=markup, parse_mode="HTML")
+
+@bot.callback_query_handler(func=lambda call: call.data == "task_done")
+def callback_done(call):
+    user_name = call.from_user.first_name
+    old_text = call.message.text or ""
+
+    new_text = old_text.replace("Holat: ⏳ Jarayonda...", f"Holat: ✅ <b>Bajarildi!</b> (Tasdiqladi: @{call.from_user.username or user_name})")
+
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=new_text,
+        parse_mode="HTML",
+        reply_markup=None
+    )
+    bot.answer_callback_query(call.id, "Vazifa bajarildi!")
 
 if __name__ == "__main__":
-    threading.Thread(target=run_web, daemon=True).start()
-    print("Bot ishga tushdi...")
+    print("Bot muvaffaqiyatli ishga tushdi...")
     bot.infinity_polling()
