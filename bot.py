@@ -5,8 +5,8 @@ import telebot
 from telebot import types
 import datetime
 
-# Botingizning to'liq tokeni kiritildi
-TOKEN = "9167869830:AAFqagQexFokD9WNHQoYtDF3bpgxXJKge-M"
+# Yangilangan bot tokeni:
+TOKEN = "9167869830:AAGlK7JpP74rSDAY3Gj8E0Nm4Yu4oqeoWIM"
 
 bot = telebot.TeleBot(TOKEN)
 
