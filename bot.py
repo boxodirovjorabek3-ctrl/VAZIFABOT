@@ -4,7 +4,6 @@ from flask import Flask
 import telebot
 from telebot import types
 
-# Yangilangan bot tokeni:
 TOKEN = "9167869830:AAGlK7JpP74rSDAY3Gj8E0Nm4Yu4oqeoWIM"
 
 bot = telebot.TeleBot(TOKEN)
@@ -35,11 +34,20 @@ def send_welcome(message):
 # /vazifa buyrug'i
 @bot.message_handler(commands=['vazifa'])
 def handle_vazifa(message):
+    # Foydalanuvchi yozgan /vazifa xabarini darhol o'chirib yuborish
+    try:
+        bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except Exception:
+        pass
+
     raw_text = message.text.replace('/vazifa', '').strip()
+    # Guruhda bot nomini qo'shib yozilgan holat uchun tozalash (/vazifa@bot_nomi)
+    if raw_text.startswith('@'):
+        raw_text = raw_text.split(' ', 1)[1] if ' ' in raw_text else ''
     
     if not raw_text:
-        bot.reply_to(
-            message, 
+        warning = bot.send_message(
+            message.chat.id, 
             "⚠️ <b>Format xato!</b>\nNamuna: <code>/vazifa Bo'lim, Mas'ul, Muddat, Topshiriq</code>", 
             parse_mode="HTML"
         )
@@ -77,7 +85,13 @@ def handle_vazifa(message):
         f"⏳ <i>Holati: Jarayonda</i>"
     )
 
-    bot.send_message(message.chat.id, javob, reply_markup=markup, parse_mode="HTML")
+    sent_msg = bot.send_message(message.chat.id, javob, reply_markup=markup, parse_mode="HTML")
+
+    # Chiqqan vazifani avtomatik zakrepit qilish
+    try:
+        bot.pin_chat_message(chat_id=message.chat.id, message_id=sent_msg.message_id, disable_notification=True)
+    except Exception:
+        pass
 
 # Tugmalar bosilganda
 @bot.callback_query_handler(func=lambda call: call.data in ["toggle_status", "add_comment"])
@@ -103,7 +117,14 @@ def callback_handler(call):
                 parse_mode="HTML",
                 reply_markup=markup
             )
-            bot.answer_callback_query(call.id, "Holat: Bajarildi!")
+
+            # Bajarilganda zakrepitdan chiqarib tashlash
+            try:
+                bot.unpin_chat_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+            except Exception:
+                pass
+
+            bot.answer_callback_query(call.id, "Vazifa bajarildi va zakrepitdan yechildi!")
         else:
             bot.answer_callback_query(call.id, "Ushbu vazifa allaqachon bajarilgan!")
 
