@@ -1,13 +1,27 @@
 import os
+import threading
+from flask import Flask
 import telebot
 from telebot import types
 import datetime
 
-# TELEGRAM BOT TOKENINGIZNI SHU YERGA YOZING (QO'SHTIRNOQ ICHIGA):
+# 1. Telegram bot tokeningizni bu yerga yozing:
 TOKEN = "BU_YERGA_TELEGRAM_TOKENINGIZNI_YOZING"
 
 bot = telebot.TeleBot(TOKEN)
 
+# Render uchun kichik web-server (o'chib qolmasligi uchun)
+server = Flask(__name__)
+
+@server.route("/")
+def home():
+    return "Bot ishlab turibdi!", 200
+
+def run_server():
+    port = int(os.environ.get("PORT", 8080))
+    server.run(host="0.0.0.0", port=port)
+
+# Bot komandalari
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     text = (
@@ -26,13 +40,11 @@ def handle_vazifa(message):
     if not raw_text:
         bot.reply_to(
             message, 
-            "⚠️ Format noto'g'ri!\n"
-            "Misol: <code>/vazifa bolim, mas'ul, vazifa, muddat</code>", 
+            "⚠️ Format noto'g'ri!\nMisol: <code>/vazifa bolim, mas'ul, vazifa, muddat</code>", 
             parse_mode="HTML"
         )
         return
 
-    # Vergul orqali qismlarga ajratamiz
     parts = [p.strip() for p in raw_text.split(',') if p.strip()]
 
     if len(parts) >= 4:
@@ -51,7 +63,6 @@ def handle_vazifa(message):
         vazifa_matni = raw_text
         muddat = "Belgilanmagan"
 
-    # Tugma yasash
     markup = types.InlineKeyboardMarkup()
     btn_done = types.InlineKeyboardButton("✅ Bajarildi deb belgilash", callback_data="task_done")
     markup.add(btn_done)
@@ -88,5 +99,10 @@ def callback_done(call):
     bot.answer_callback_query(call.id, "Vazifa bajarildi!")
 
 if __name__ == "__main__":
+    # Veb-serverni orqa fonda ishga tushiramiz
+    t = threading.Thread(target=run_server)
+    t.daemon = True
+    t.start()
+    
     print("Bot muvaffaqiyatli ishga tushdi...")
     bot.infinity_polling()
