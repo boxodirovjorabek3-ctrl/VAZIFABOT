@@ -5,12 +5,12 @@ import telebot
 from telebot import types
 import datetime
 
-# 1. Telegram bot tokeningizni bu yerga yozing:
-TOKEN = "BU_YERGA_TELEGRAM_TOKENINGIZNI_YOZING"
+# Botingizning to'liq tokeni kiritildi
+TOKEN = "9167869830:AAFqagQexFokD9WNHQoYtDF3bpgxXJKge-M"
 
 bot = telebot.TeleBot(TOKEN)
 
-# Render uchun kichik web-server (o'chib qolmasligi uchun)
+# Render uchun web-server
 server = Flask(__name__)
 
 @server.route("/")
@@ -21,7 +21,7 @@ def run_server():
     port = int(os.environ.get("PORT", 8080))
     server.run(host="0.0.0.0", port=port)
 
-# Bot komandalari
+# /start va /help
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     text = (
@@ -33,6 +33,7 @@ def send_welcome(message):
     )
     bot.reply_to(message, text, parse_mode="HTML")
 
+# /vazifa buyrug'i
 @bot.message_handler(commands=['vazifa'])
 def handle_vazifa(message):
     raw_text = message.text.replace('/vazifa', '').strip()
@@ -79,6 +80,7 @@ def handle_vazifa(message):
 
     bot.send_message(message.chat.id, javob, reply_markup=markup, parse_mode="HTML")
 
+# Bajarildi tugmasi bosilganda
 @bot.callback_query_handler(func=lambda call: call.data == "task_done")
 def callback_done(call):
     user_name = call.from_user.first_name
@@ -99,7 +101,6 @@ def callback_done(call):
     bot.answer_callback_query(call.id, "Vazifa bajarildi!")
 
 if __name__ == "__main__":
-    # Veb-serverni orqa fonda ishga tushiramiz
     t = threading.Thread(target=run_server)
     t.daemon = True
     t.start()
